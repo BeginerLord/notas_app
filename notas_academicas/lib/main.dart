@@ -1,33 +1,15 @@
-
 import 'package:flutter/material.dart';
-
-void main() => runApp(const MyApp());
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      
-    );
-  }
-}
-
-/*
-import 'package:flutter/material.dart';
-import 'src/app.dart';
+import 'package:notas_academicas/app.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Asegura inicialización antes de correr la app
-
+  // Asegúrate de cargar dotenv antes de ejecutar la aplicación
+   await dotenv.load(fileName: ".env");
   runApp(
     ProviderScope( // Permite usar Riverpod en toda la app
       child: MyApp(),
     ),
   );
 }
-
-*/

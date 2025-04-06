@@ -1,14 +1,12 @@
-
-/* 
 import 'package:flutter/material.dart';
-import 'package:api_to_connet/routes/app_routes.dart';
-import 'package:api_to_connet/providers/auth_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:notas_academicas/src/routes/route_guard.dart';
 
 class MyApp extends ConsumerWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isLoggedIn = ref.watch(authProvider).isLoggedIn;
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -16,10 +14,9 @@ class MyApp extends ConsumerWidget {
       theme: ThemeData.light(),
       darkTheme: ThemeData.dark(),
       themeMode: ThemeMode.system,
-      initialRoute: isLoggedIn ? '/home' : '/login',
-      routes: AppRoutes.routes,
+      onGenerateRoute: (settings) => RouteGuard.handleRoute(settings, ref),
+      initialRoute: '/login', // Ruta inicial
     );
   }
 }
 
-*/
