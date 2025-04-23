@@ -1,6 +1,6 @@
 
 import 'package:flutter/material.dart';
-import 'package:notas_academicas/src/screens/login_screen.dart';
+import 'package:notas_academicas/src/screens/Auth/login/login_screen.dart';
 
 class AppRoutes {
   static const String home = '/home';

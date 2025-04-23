@@ -4,13 +4,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api_interface.dart';
 
 class Api implements ApiInterface {
-  late final Dio _scheduleApi;
+  Dio? _scheduleApi; // Cambiar a nullable para verificar si ya está inicializado
 
   @override
-  Dio get client => _scheduleApi;
+  Dio get client {
+    if (_scheduleApi == null) {
+      throw Exception("El cliente API no ha sido inicializado. Llama a initialize() primero.");
+    }
+    return _scheduleApi!;
+  }
 
   @override
   Future<void> initialize() async {
+    // Verifica si ya está inicializado
+    if (_scheduleApi != null) {
+      return; // Sal del método si ya está inicializado
+    }
+
     await dotenv.load();
 
     final String baseUrl = dotenv.env['API_URL'] ?? '';
@@ -25,7 +35,7 @@ class Api implements ApiInterface {
       ),
     );
 
-    _scheduleApi.interceptors.add(
+    _scheduleApi!.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           final prefs = await SharedPreferences.getInstance();
@@ -47,21 +57,21 @@ class Api implements ApiInterface {
   // Implementación de los métodos CRUD
   @override
   Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) {
-    return _scheduleApi.get(path, queryParameters: queryParameters);
+    return client.get(path, queryParameters: queryParameters);
   }
 
   @override
   Future<Response> post(String path, {dynamic data}) {
-    return _scheduleApi.post(path, data: data);
+    return client.post(path, data: data);
   }
 
   @override
   Future<Response> put(String path, {dynamic data}) {
-    return _scheduleApi.put(path, data: data);
+    return client.put(path, data: data);
   }
 
   @override
   Future<Response> delete(String path, {Map<String, dynamic>? queryParameters}) {
-    return _scheduleApi.delete(path, queryParameters: queryParameters);
+    return client.delete(path, queryParameters: queryParameters);
   }
 }

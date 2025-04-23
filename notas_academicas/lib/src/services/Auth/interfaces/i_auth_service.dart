@@ -6,4 +6,7 @@ abstract class IauthService {
 
   // Método para iniciar sesión
   Future<Map<String, dynamic>> login(String email, String password);
+
+
+  
 }

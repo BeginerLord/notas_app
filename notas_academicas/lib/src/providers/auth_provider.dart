@@ -1,4 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:notas_academicas/src/api/api_service.dart';
+import 'package:notas_academicas/src/services/Auth/implementation/auth_service_impl.dart';
+import 'package:notas_academicas/src/services/Auth/interfaces/i_auth_service.dart';
 
 class AuthState {
   final bool isLoggedIn;
@@ -38,4 +41,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 // Proveedor de estado para la autenticación
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   return AuthNotifier();
+});
+
+// Proveedor del servicio de autenticación basado en la interfaz
+final authServiceProvider = Provider<IauthService>((ref) {
+  return AuthServiceImpl(Api()); // Devuelve una implementación de IauthService
 });

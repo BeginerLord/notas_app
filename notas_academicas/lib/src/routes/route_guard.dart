@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:notas_academicas/src/providers/auth_provider.dart';
 import 'package:notas_academicas/src/routes/app_routes.dart';
-import 'package:notas_academicas/src/screens/login_screen.dart';
+import 'package:notas_academicas/src/screens/Auth/login/login_screen.dart';
 
 class RouteGuard {
 static Route<dynamic> handleRoute(RouteSettings settings, WidgetRef ref) {
