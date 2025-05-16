@@ -3,7 +3,12 @@ import 'package:notas_academicas/src/models/notes_model.dart';
 abstract class INoteService {
   Future<Note> createNote(Note note);
 
-  Future<List<Note>> getAllNotes();
+  Future<List<Note>> getAllNotes({
+    int page = 0,
+    int size = 10,
+    String sortBy = "id",
+    String direction = "asc",
+  });
 
   Future<Note> getNoteById(int id);
 

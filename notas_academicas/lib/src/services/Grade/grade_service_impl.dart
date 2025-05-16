@@ -30,7 +30,14 @@ class GradeServiceImpl implements IGradeService {
   }
 
   @override
-  Future<List<Grade>> getAllGrades() async {
+  Future<List<Grade>> getAllGrades(
+    {
+    int page = 0,
+    int size = 10,
+    String sortBy = "grade",
+    String direction = "asc",
+  }
+  ) async {
     await initializeApi();
 
     // Realiza la solicitud GET para obtener todos los grados
