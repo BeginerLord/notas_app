@@ -1,25 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:notas_academicas/src/screens/Auth/login/login_styles.dart';
 
-
-
 class CustomTextField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
+  final String? hint; 
   final bool isPassword;
+  final bool isPasswordVisible;
   final String? errorText;
   final TextInputType keyboardType;
   final Function(String)? onChanged;
   final Widget? suffixIcon;
+  final String? Function(String?)? validator; // Add the validator parameter
+  final VoidCallback? onTogglePasswordVisibility;
 
   const CustomTextField({
     super.key,
     required this.controller,
     required this.label,
+    this.hint,
     this.isPassword = false,
+    this.isPasswordVisible = false,
     this.errorText,
     this.keyboardType = TextInputType.text,
-    this.onChanged, this.suffixIcon,
+    this.onChanged,
+    this.suffixIcon,
+    this.validator, // Initialize the validator parameter
+    this.onTogglePasswordVisibility,
   });
 
   @override
@@ -40,15 +47,17 @@ class CustomTextField extends StatelessWidget {
           ),
           child: TextFormField(
             controller: controller,
-            obscureText: isPassword,
+            obscureText: isPassword && !isPasswordVisible,
             keyboardType: keyboardType,
             style: TextStyle(
               fontSize: LoginStyles.kInputTextSize,
               color: LoginStyles.kTextColor,
             ),
             onChanged: onChanged,
+            validator: validator, // Use the validator parameter
             decoration: InputDecoration(
               labelText: label,
+              hintText: hint,
               labelStyle: TextStyle(
                 color: hasError
                     ? LoginStyles.kErrorColor
@@ -58,7 +67,14 @@ class CustomTextField extends StatelessWidget {
               contentPadding: const EdgeInsets.all(LoginStyles.kInputPadding),
               border: InputBorder.none,
               floatingLabelBehavior: FloatingLabelBehavior.auto,
-              suffixIcon: suffixIcon, // Usa el ícono personalizado si se proporciona
+              suffixIcon: isPassword 
+                  ? IconButton(
+                      icon: Icon(
+                        isPasswordVisible ? Icons.visibility_off : Icons.visibility,
+                      ),
+                      onPressed: onTogglePasswordVisibility,
+                    )
+                  : suffixIcon,
             ),
           ),
         ),
