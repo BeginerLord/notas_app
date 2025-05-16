@@ -1,9 +1,10 @@
 import 'package:notas_academicas/src/models/notes_model.dart';
+import 'package:notas_academicas/src/models/pagination_model.dart';
 
 abstract class INoteService {
   Future<Note> createNote(Note note);
 
-  Future<List<Note>> getAllNotes({
+  Future<PaginatedResponse<Note>> getAllNotes({
     int page = 0,
     int size = 10,
     String sortBy = "id",

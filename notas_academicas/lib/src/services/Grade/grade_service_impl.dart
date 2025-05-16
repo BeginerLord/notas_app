@@ -1,5 +1,6 @@
 import 'package:notas_academicas/src/api/api_interface.dart';
 import 'package:notas_academicas/src/models/grade_model.dart';
+import 'package:notas_academicas/src/models/pagination_model.dart';
 import 'package:notas_academicas/src/services/Grade/i_grade_service.dart';
 
 class GradeServiceImpl implements IGradeService {
@@ -29,25 +30,27 @@ class GradeServiceImpl implements IGradeService {
     return Grade.fromGetResponse(response.data);
   }
 
-  @override
-  Future<List<Grade>> getAllGrades(
-    {
+   @override
+  Future<PaginatedResponse<Grade>> getAllGrades({
     int page = 0,
     int size = 10,
     String sortBy = "grade",
     String direction = "asc",
-  }
-  ) async {
+  }) async {
     await initializeApi();
-
-    // Realiza la solicitud GET para obtener todos los grados
-    final response = await api.get('/grade');
-
-    // Convierte la respuesta en una lista de objetos Grade
-    final List<dynamic> gradeList = response.data;
-    return gradeList.map((json) => Grade.fromGetResponse(json)).toList();
+    
+    // Construye la URL con los parámetros de paginación
+    final url = '/grade?page=$page&size=$size&sortBy=$sortBy&direction=$direction';
+    
+    // Realiza la solicitud GET para obtener todos los grados con paginación
+    final response = await api.get(url);
+    
+    // Convierte la respuesta en un objeto PaginatedResponse<Grade>
+    return PaginatedResponse.fromJson(
+      response.data,
+      (json) => Grade.fromGetResponse(json),
+    );
   }
-
   @override
   Future<Grade> getGradeById(int id) async {
     await initializeApi();

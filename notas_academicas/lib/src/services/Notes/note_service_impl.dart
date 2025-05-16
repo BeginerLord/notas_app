@@ -1,5 +1,6 @@
 import 'package:notas_academicas/src/api/api_interface.dart';
 import 'package:notas_academicas/src/models/notes_model.dart';
+import 'package:notas_academicas/src/models/pagination_model.dart';
 import 'package:notas_academicas/src/services/Notes/i_note_service.dart';
 
 class NoteServiceImpl implements INoteService {
@@ -30,7 +31,7 @@ class NoteServiceImpl implements INoteService {
   }
 
   @override
-  Future<List<Note>> getAllNotes({
+  Future<PaginatedResponse<Note>> getAllNotes({
     int page = 0,
     int size = 10,
     String sortBy = "id",
@@ -38,23 +39,18 @@ class NoteServiceImpl implements INoteService {
   }) async {
     await initializeApi();
 
-    // Realiza la solicitud GET para obtener todas las notas
-    final response = await api.get('/note');
+    // Construye la URL con los parámetros de paginación
+    final url =
+        '/note?page=$page&size=$size&sortBy=$sortBy&direction=$direction';
 
-    // Convierte la respuesta en una lista de objetos Note
-    final List<dynamic> noteList = response.data;
-    return noteList.map((json) => Note.fromGetResponse(json)).toList();
-  }
+    // Realiza la solicitud GET para obtener todas las notas con paginación
+    final response = await api.get(url);
 
-  @override
-  Future<Note> getNoteById(int id) async {
-    await initializeApi();
-
-    // Realiza la solicitud GET para obtener una nota por ID
-    final response = await api.get('/note/$id');
-
-    // Crea un objeto Note a partir de la respuesta
-    return Note.fromGetResponse(response.data);
+    // Convierte la respuesta en un objeto PaginatedResponse<Note>
+    return PaginatedResponse.fromJson(
+      response.data,
+      (json) => Note.fromGetResponse(json),
+    );
   }
 
   @override
@@ -91,6 +87,17 @@ class NoteServiceImpl implements INoteService {
 
     // Realiza la solicitud PUT para agregar una nota a un estudiante
     final response = await api.put('/note/add/$studentUuid', data: requestData);
+
+    // Crea un objeto Note a partir de la respuesta
+    return Note.fromGetResponse(response.data);
+  }
+
+  @override
+  Future<Note> getNoteById(int id) async {
+    await initializeApi();
+
+    // Realiza la solicitud GET para obtener una nota por su ID
+    final response = await api.get('/note/$id');
 
     // Crea un objeto Note a partir de la respuesta
     return Note.fromGetResponse(response.data);
