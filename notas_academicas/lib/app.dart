@@ -15,7 +15,7 @@ class MyApp extends ConsumerWidget {
       darkTheme: ThemeData.dark(),
       themeMode: ThemeMode.system,
       onGenerateRoute: (settings) => RouteGuard.handleRoute(settings, ref),
-      initialRoute: '/login', // Ruta inicial
+      initialRoute: '/signup', // Ruta inicial
     );
   }
 }

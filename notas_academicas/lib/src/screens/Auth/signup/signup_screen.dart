@@ -98,7 +98,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 20),
-                Image.asset('assets/logo.png', height: 100),
+                Image.asset('lib/src/assets/icon.png', height: 100),
                 const SizedBox(height: 20),
                 Text('Bienvenido',
                     style: AppStyles.titleStyle.copyWith(fontSize: 30),

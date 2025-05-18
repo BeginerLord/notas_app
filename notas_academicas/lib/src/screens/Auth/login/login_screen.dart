@@ -8,7 +8,7 @@ import 'package:notas_academicas/src/widgets/Auth/custom_text_field.dart';
 import 'package:notas_academicas/src/widgets/Auth/primary_button.dart';
 
 class LoginScreen extends HookConsumerWidget {
-  const LoginScreen({super.key});
+  const  LoginScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
