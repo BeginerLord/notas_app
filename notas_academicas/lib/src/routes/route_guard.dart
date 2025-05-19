@@ -11,7 +11,7 @@ class RouteGuard {
     final userRole = authState.role;
 
     // Lista de rutas públicas que no requieren autenticación
-    final publicRoutes = [AppRoutes.login, AppRoutes.signup];
+    final publicRoutes = [AppRoutes.login, AppRoutes.signup, AppRoutes.dashboard];
     
     // Verifica si el usuario está autenticado para rutas protegidas
     if (!isLoggedIn && !publicRoutes.contains(settings.name)) {
