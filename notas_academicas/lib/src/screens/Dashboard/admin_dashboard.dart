@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:notas_academicas/src/app_styles.dart';
 import 'package:notas_academicas/src/screens/Dashboard/dashboard_home.dart';
 import 'package:notas_academicas/src/screens/Dashboard/student_screen.dart';
-import 'package:notas_academicas/src/screens/Dashboard/teachers_screen.dart';
+import 'package:notas_academicas/src/screens/Dashboard/professor_screen.dart';
 import 'package:notas_academicas/src/widgets/dashboard/admin_appbar.dart';
 import 'package:notas_academicas/src/widgets/dashboard/admin_sidebar.dart';
 
@@ -141,7 +141,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       case 1:
         return const StudentsScreen();
       case 2:
-        return const TeachersScreen();
+        return const ProfessorScreen();
       case 3:
         return _buildPlaceholderScreen('Gestión de Materias');
       case 4:

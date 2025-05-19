@@ -10,6 +10,7 @@ class AppStyles {
   static const Color lightGrey = Color(0xFFF5F5F5);
   static const Color mediumGrey = Color(0xFFE0E0E0);
   static const Color darkGrey = Color(0xFF757575);
+  static const Color darkBlue = Color(0xFF003366);
 
 
   // Estilos de texto
@@ -75,7 +76,7 @@ static const TextStyle dashboardTitleStyle = TextStyle(
   static ButtonStyle primaryButtonStyle = ElevatedButton.styleFrom(
     backgroundColor: primaryBlue,
     foregroundColor: white,
-    padding: const EdgeInsets.symmetric(vertical: 15.0),
+    padding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 20.0),
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(10.0),
     ),
