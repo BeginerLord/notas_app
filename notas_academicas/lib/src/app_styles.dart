@@ -7,6 +7,10 @@ class AppStyles {
   static const Color navyBlue = Color(0xFF0D47A1);
   static const Color white = Colors.white;
   static const Color black = Colors.black;
+  static const Color lightGrey = Color(0xFFF5F5F5);
+  static const Color mediumGrey = Color(0xFFE0E0E0);
+  static const Color darkGrey = Color(0xFF757575);
+
 
   // Estilos de texto
   static const TextStyle titleStyle = TextStyle(
@@ -26,7 +30,28 @@ class AppStyles {
     fontWeight: FontWeight.bold,
     color: white,
   );
+static const TextStyle dashboardTitleStyle = TextStyle(
+    fontSize: 20.0,
+    fontWeight: FontWeight.bold,
+    color: black,
+  );
 
+  static const TextStyle dashboardSubtitleStyle = TextStyle(
+    fontSize: 14.0,
+    color: darkGrey,
+  );
+
+  static const TextStyle sidebarItemStyle = TextStyle(
+    fontSize: 14.0,
+    fontWeight: FontWeight.w500,
+    color: black,
+  );
+
+  static const TextStyle sidebarSelectedItemStyle = TextStyle(
+    fontSize: 14.0,
+    fontWeight: FontWeight.w500,
+    color: white,
+  );
   // Decoración para los campos de texto
   static InputDecoration textFieldDecoration(String label, IconData icon) {
     return InputDecoration(
@@ -64,4 +89,19 @@ class AppStyles {
       borderRadius: BorderRadius.circular(10.0),
     ),
   );
+
+  // Decoración para tarjetas del dashboard
+  static BoxDecoration cardDecoration = BoxDecoration(
+    color: white,
+    borderRadius: BorderRadius.circular(10.0),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.grey.withAlpha((0.2 * 255).toInt()),
+        spreadRadius: 1,
+        blurRadius: 5,
+        offset: const Offset(0, 3),
+      ),
+    ],
+  );
+
 }
