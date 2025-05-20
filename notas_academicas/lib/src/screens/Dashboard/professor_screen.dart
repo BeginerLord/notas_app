@@ -38,15 +38,29 @@ class ProfessorScreen extends HookConsumerWidget {
         isLoading.value = true;
         errorMessage.value = null;
         currentPage.value = 0;
-        final resp = await getAllHook.getAllProfessors(
+        
+        // Actualizado: usando el patrón correcto de fetch() y getState()
+        await getAllHook.fetch(
           page: currentPage.value,
           size: pageSize.value,
           sortBy: 'userEntity.username',
           direction: 'asc',
         );
-        teachers.value = resp.content;
-        totalPages.value = resp.totalPages;
-        hasMoreData.value = currentPage.value < resp.totalPages - 1;
+        
+        final state = getAllHook.getState(
+          page: currentPage.value,
+          size: pageSize.value,
+          sortBy: 'userEntity.username',
+          direction: 'asc',
+        );
+        
+        if (state.error != null) {
+          errorMessage.value = state.error;
+        } else if (state.data != null) {
+          teachers.value = state.data!.content;
+          totalPages.value = state.data!.totalPages;
+          hasMoreData.value = currentPage.value < state.data!.totalPages - 1;
+        }
       } catch (e) {
         errorMessage.value = e.toString();
       } finally {
@@ -59,14 +73,28 @@ class ProfessorScreen extends HookConsumerWidget {
       try {
         isLoadingMore.value = true;
         currentPage.value++;
-        final resp = await getAllHook.getAllProfessors(
+        
+        // Actualizado: usando el patrón correcto de fetch() y getState()
+        await getAllHook.fetch(
           page: currentPage.value,
           size: pageSize.value,
           sortBy: 'userEntity.username',
           direction: 'asc',
         );
-        teachers.value = [...teachers.value, ...resp.content];
-        hasMoreData.value = currentPage.value < resp.totalPages - 1;
+        
+        final state = getAllHook.getState(
+          page: currentPage.value,
+          size: pageSize.value,
+          sortBy: 'userEntity.username',
+          direction: 'asc',
+        );
+        
+        if (state.error != null) {
+          errorMessage.value = state.error;
+        } else if (state.data != null) {
+          teachers.value = [...teachers.value, ...state.data!.content];
+          hasMoreData.value = currentPage.value < state.data!.totalPages - 1;
+        }
       } catch (e) {
         errorMessage.value = e.toString();
       } finally {
@@ -74,8 +102,12 @@ class ProfessorScreen extends HookConsumerWidget {
       }
     }
 
+    // CAMBIO AQUÍ: Retrasar loadInitial hasta después de la construcción del widget
     useEffect(() {
-      loadInitial();
+      // Usar addPostFrameCallback para ejecutar después de que el build se complete
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        loadInitial();
+      });
       return null;
     }, []);
 
@@ -170,11 +202,55 @@ class ProfessorScreen extends HookConsumerWidget {
             ),
           ],
 
-          TeachersFAB(onAdd: () {
-            // Navegar a creación de profesor...
+          TeachersFAB(onAdd: () async {
+            // Muestra diálogo de creación y recarga al completar
+            final result = await showDialog<bool>(
+              context: context,
+              builder: (_) => const ProfessorCreateDialog(),
+            );
+            
+            if (result == true) {
+              loadInitial();  // Recargar datos después de creación exitosa
+            }
           }),
         ],
       ),
+    );
+  }
+}
+
+// Suponiendo que tienes un diálogo para crear profesores - adapta según tus necesidades
+class ProfessorCreateDialog extends HookConsumerWidget {
+  const ProfessorCreateDialog({super.key});
+  
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Implementa el diálogo con los campos necesarios
+    // ...
+    
+    return AlertDialog(
+      title: const Text('Crear Profesor'),
+      content: const SingleChildScrollView(
+        // Formulario con campos
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: () async {
+            // Lógica para crear profesor
+            try {
+              // await createHook.createProfessor(profesor);
+              Navigator.pop(context, true);
+            } catch (e) {
+              // Manejo de errores
+            }
+          },
+          child: const Text('Guardar'),
+        ),
+      ],
     );
   }
 }

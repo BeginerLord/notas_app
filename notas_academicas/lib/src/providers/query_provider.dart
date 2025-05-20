@@ -1,12 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final queryProvider = StateNotifierProvider<QueryNotifier, QueryState>((ref) {
-  return QueryNotifier();
-});
-
-class QueryState {
+/// Estado genérico de una consulta
+class QueryState<T> {
   final bool isLoading;
-  final dynamic data;
+  final T? data;
   final String? error;
 
   QueryState({
@@ -15,21 +12,39 @@ class QueryState {
     this.error,
   });
 
-  factory QueryState.initial() {
-    return QueryState(isLoading: false, data: null, error: null);
-  }
+  factory QueryState.initial() => QueryState(isLoading: false, data: null, error: null);
 }
 
-class QueryNotifier extends StateNotifier<QueryState> {
-  QueryNotifier() : super(QueryState.initial());
+/// Notificador genérico que ejecuta una función async y actualiza el estado
+class QueryNotifier<T> extends StateNotifier<QueryState<T>> {
+  QueryNotifier() : super(QueryState<T>.initial());
 
-  Future<void> fetchData(Future<dynamic> Function() fetchFunction) async {
-    state = QueryState(isLoading: true, data: null, error: null);
+  /// Ejecuta [fetchFunction] y actualiza [state] con loading/data/error
+  Future<void> fetchData(Future<T> Function() fetchFunction) async {
+    // Verificar si el notificador sigue montado
+    if (!mounted) return;
+    
+    // Mantener el data actual mientras carga para no perder información previa
+    state = QueryState<T>(isLoading: true, data: state.data, error: null);
+    
     try {
-      final data = await fetchFunction();
-      state = QueryState(isLoading: false, data: data, error: null);
+      final result = await fetchFunction();
+      
+      // Verificar nuevamente si el notificador sigue montado después de la operación asíncrona
+      if (!mounted) return;
+      
+      state = QueryState<T>(isLoading: false, data: result, error: null);
     } catch (e) {
-      state = QueryState(isLoading: false, data: null, error: e.toString());
+      // Verificar si el notificador sigue montado
+      if (!mounted) return;
+      
+      state = QueryState<T>(isLoading: false, data: state.data, error: e.toString());
     }
   }
 }
+
+/// Provider genérico para consultas parametrizadas
+StateNotifierProviderFamily<QueryNotifier<T>, QueryState<T>, String> queryProviderFamily<T>() =>
+    StateNotifierProvider.family<QueryNotifier<T>, QueryState<T>, String>(
+      (ref, key) => QueryNotifier<T>(),
+    );

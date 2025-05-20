@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:notas_academicas/src/screens/Auth/login/login_styles.dart';
 
-
 class PrimaryButton extends StatelessWidget {
   final String text;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;  // Cambiado a VoidCallback? para aceptar null
   final bool isLoading;
   final bool isDisabled;
 
   const PrimaryButton({
     super.key,
+    required this.onPressed,  // Ya puede ser null
     required this.text,
-    required this.onPressed,
     this.isLoading = false,
     this.isDisabled = false,
   });
@@ -23,7 +22,7 @@ class PrimaryButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(LoginStyles.kButtonBorderRadius),
         boxShadow: isDisabled ? [] : LoginStyles.softShadow,
         gradient: LinearGradient(
-          colors: isDisabled
+          colors: isDisabled || onPressed == null
               ? [Colors.grey.shade300, Colors.grey.shade200]
               : [LoginStyles.kSoftBlue, LoginStyles.kSoftPink],
         ),
@@ -56,7 +55,7 @@ class PrimaryButton extends StatelessWidget {
                 style: TextStyle(
                   fontSize: LoginStyles.kButtonTextSize,
                   fontWeight: FontWeight.w600,
-                  color: isDisabled ? Colors.grey.shade500 : Colors.white,
+                  color: isDisabled || onPressed == null ? Colors.grey.shade500 : Colors.white,
                 ),
               ),
       ),

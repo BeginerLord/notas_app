@@ -2,6 +2,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:notas_academicas/src/models/pagination_model.dart';
 import 'package:notas_academicas/src/models/professor_model.dart';
 import 'package:notas_academicas/src/providers/api_provider.dart';
+import 'package:notas_academicas/src/providers/query_provider.dart';
 import 'package:notas_academicas/src/services/Professor/implenentation/professor_service_impl.dart';
 import 'package:notas_academicas/src/services/Professor/interfaces/i_professor_service.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -13,76 +14,56 @@ final professorServiceProvider = Provider<IProfessorService>((ref) {
   return ProfessorServiceImpl(api);
 });
 
-// Provider para obtener todos los profesores con paginación
-final getAllProfessorsProvider = FutureProvider.family<PaginatedResponse<Professor>, Map<String, dynamic>>(
-  (ref, params) async {
-    final professorService = ref.read(professorServiceProvider);
-    return professorService.getAllProfessors(
-      page: params['page'] ?? 0,
-      size: params['size'] ?? 10, 
-      sortBy: params['sortBy'] ?? 'userEntity.username',
-      direction: params['direction'] ?? 'asc',
-    );
-  },
-);
-
-// Provider para obtener un profesor por ID
-final getProfessorByIdProvider = FutureProvider.family<Professor, String>(
-  (ref, uuid) async {
-    final professorService = ref.read(professorServiceProvider);
-    return professorService.getProfessorById(uuid);
-  },
-);
-
-// Provider para obtener profesores por especialidad
-final getProfessorsBySpecialtyProvider = FutureProvider.family<List<Professor>, String>(
-  (ref, especialidad) async {
-    final professorService = ref.read(professorServiceProvider);
-    return professorService.getProfessorsBySpecialty(especialidad);
-  },
-);
-
-// Provider para obtener carga académica de un profesor
-final getProfessorAcademicLoadProvider = FutureProvider.family<List<AcademicLoad>, String>(
-  (ref, uuid) async {
-    final professorService = ref.read(professorServiceProvider);
-    return professorService.getProfessorAcademicLoad(uuid);
-  },
-);
-
 // Hook para obtener todos los profesores
 class UseGetAllProfessors {
   final WidgetRef ref;
+  final IProfessorService professorService;
+  final _allProfessorsProvider = queryProviderFamily<PaginatedResponse<Professor>>();
 
-  UseGetAllProfessors(this.ref);
+  UseGetAllProfessors(this.ref)
+      : professorService = ref.read(professorServiceProvider);
 
-  Future<PaginatedResponse<Professor>> getAllProfessors({
+  String _getProviderKey(int page, int size, String sortBy, String direction) {
+    return 'all_professors_${page}_${size}_${sortBy}_$direction';
+  }
+
+  Future<void> fetch({
     int page = 0,
     int size = 10,
     String sortBy = 'userEntity.username',
     String direction = 'asc',
   }) async {
-    try {
-      final params = {
-        'page': page,
-        'size': size,
-        'sortBy': sortBy,
-        'direction': direction,
-      };
-      
-      // Invalidamos el provider para forzar una recarga
-      ref.invalidate(getAllProfessorsProvider(params));
-      
-      // Esperamos el resultado
-      return await ref.read(getAllProfessorsProvider(params).future);
-    } catch (error) {
-      Fluttertoast.showToast(
-        msg: "Error al obtener profesores: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
+    final key = _getProviderKey(page, size, sortBy, direction);
+    final notifier = ref.read(_allProfessorsProvider(key).notifier);
+    
+    await notifier.fetchData(() async {
+      return await professorService.getAllProfessors(
+        page: page,
+        size: size, 
+        sortBy: sortBy,
+        direction: direction,
       );
-      rethrow;
-    }
+    });
+  }
+  
+  QueryState<PaginatedResponse<Professor>> getState({
+    int page = 0,
+    int size = 10,
+    String sortBy = 'userEntity.username',
+    String direction = 'asc',
+  }) {
+    final key = _getProviderKey(page, size, sortBy, direction);
+    return ref.watch(_allProfessorsProvider(key));
+  }
+  
+  void invalidate({
+    int page = 0,
+    int size = 10,
+    String sortBy = 'userEntity.username',
+    String direction = 'asc',
+  }) {
+    final key = _getProviderKey(page, size, sortBy, direction);
+    ref.invalidate(_allProfessorsProvider(key));
   }
 }
 
@@ -90,35 +71,42 @@ class UseGetAllProfessors {
 class UseCreateProfessor {
   final WidgetRef ref;
   final IProfessorService professorService;
+  final _createProfessorProvider = queryProviderFamily<Professor>();
 
   UseCreateProfessor(this.ref) 
       : professorService = ref.read(professorServiceProvider);
 
-  Future<Professor> createProfessor(Professor professor) async {
-    try {
-      // Ejecutar la operación de crear profesor
-      final createdProfessor = await professorService.createProfessor(professor);
-      
+  Future<void> createProfessor(Professor professor) async {
+    final key = 'create_professor_${DateTime.now().millisecondsSinceEpoch}';
+    final notifier = ref.read(_createProfessorProvider(key).notifier);
+    
+    await notifier.fetchData(() async {
+      return await professorService.createProfessor(professor);
+    });
+    
+    final state = ref.read(_createProfessorProvider(key));
+    
+    if (state.error != null) {
+      Fluttertoast.showToast(
+        msg: "Error al crear profesor: ${state.error}",
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+      );
+      throw Exception(state.error);
+    } else if (state.data != null) {
       // Invalidar consultas previas para forzar recarga de datos
-      ref.invalidate(getAllProfessorsProvider);
+      UseGetAllProfessors(ref).invalidate();
       
-      // Mostrar mensaje de éxito
       Fluttertoast.showToast(
         msg: "Profesor creado exitosamente",
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
       );
-      
-      return createdProfessor;
-    } catch (error) {
-      // Manejar errores y notificar
-      Fluttertoast.showToast(
-        msg: "Error al crear profesor: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
-      rethrow;
     }
+  }
+  
+  QueryState<Professor> getState(String key) {
+    return ref.watch(_createProfessorProvider(key));
   }
 }
 
@@ -126,36 +114,45 @@ class UseCreateProfessor {
 class UseUpdateProfessor {
   final WidgetRef ref;
   final IProfessorService professorService;
+  final _updateProfessorProvider = queryProviderFamily<Professor>();
 
   UseUpdateProfessor(this.ref)
       : professorService = ref.read(professorServiceProvider);
 
-  Future<Professor> updateProfessor(String uuid, Professor professor) async {
-    try {
-      // Ejecutar la operación de actualizar profesor
-      final updatedProfessor = await professorService.updateProfessor(uuid, professor);
+  String _getProviderKey(String uuid) => 'update_professor_$uuid';
+
+  Future<void> updateProfessor(String uuid, Professor professor) async {
+    final key = _getProviderKey(uuid);
+    final notifier = ref.read(_updateProfessorProvider(key).notifier);
+    
+    await notifier.fetchData(() async {
+      return await professorService.updateProfessor(uuid, professor);
+    });
+    
+    final state = ref.read(_updateProfessorProvider(key));
+    
+    if (state.error != null) {
+      Fluttertoast.showToast(
+        msg: "Error al actualizar profesor: ${state.error}",
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+      );
+      throw Exception(state.error);
+    } else if (state.data != null) {
+      // Invalidar consultas previas
+      UseGetAllProfessors(ref).invalidate();
+      UseGetProfessorById(ref).invalidate(uuid);
       
-      // Invalidar consultas previas para forzar recarga de datos
-      ref.invalidate(getAllProfessorsProvider);
-      ref.invalidate(getProfessorByIdProvider(uuid));
-      
-      // Mostrar mensaje de éxito
       Fluttertoast.showToast(
         msg: "Profesor actualizado exitosamente",
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
       );
-      
-      return updatedProfessor;
-    } catch (error) {
-      // Manejar errores y notificar
-      Fluttertoast.showToast(
-        msg: "Error al actualizar profesor: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
-      rethrow;
     }
+  }
+  
+  QueryState<Professor> getState(String uuid) {
+    return ref.watch(_updateProfessorProvider(_getProviderKey(uuid)));
   }
 }
 
@@ -163,107 +160,131 @@ class UseUpdateProfessor {
 class UseDeleteProfessor {
   final WidgetRef ref;
   final IProfessorService professorService;
+  final _deleteProfessorProvider = queryProviderFamily<bool>();
 
   UseDeleteProfessor(this.ref)
       : professorService = ref.read(professorServiceProvider);
 
-  Future<bool> deleteProfessor(String uuid) async {
-    try {
-      // Ejecutar la operación de eliminar profesor
-      final result = await professorService.deleteProfessor(uuid);
+  String _getProviderKey(String uuid) => 'delete_professor_$uuid';
+
+  Future<void> deleteProfessor(String uuid) async {
+    final key = _getProviderKey(uuid);
+    final notifier = ref.read(_deleteProfessorProvider(key).notifier);
+    
+    await notifier.fetchData(() async {
+      return await professorService.deleteProfessor(uuid);
+    });
+    
+    final state = ref.read(_deleteProfessorProvider(key));
+    
+    if (state.error != null) {
+      Fluttertoast.showToast(
+        msg: "Error al eliminar profesor: ${state.error}",
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+      );
+      throw Exception(state.error);
+    } else if (state.data != null && state.data!) {
+      // Invalidar consultas previas
+      UseGetAllProfessors(ref).invalidate();
       
-      // Invalidar consultas previas para forzar recarga de datos
-      ref.invalidate(getAllProfessorsProvider);
-      
-      // Mostrar mensaje de éxito
       Fluttertoast.showToast(
         msg: "Profesor eliminado exitosamente",
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
       );
-      
-      return result;
-    } catch (error) {
-      // Manejar errores y notificar
-      Fluttertoast.showToast(
-        msg: "Error al eliminar profesor: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
-      rethrow;
     }
+  }
+  
+  QueryState<bool> getState(String uuid) {
+    return ref.watch(_deleteProfessorProvider(_getProviderKey(uuid)));
   }
 }
 
 // Hook para obtener un profesor por ID
 class UseGetProfessorById {
   final WidgetRef ref;
+  final IProfessorService professorService;
+  final _professorByIdProvider = queryProviderFamily<Professor>();
 
-  UseGetProfessorById(this.ref);
+  UseGetProfessorById(this.ref)
+      : professorService = ref.read(professorServiceProvider);
 
-  Future<Professor> getProfessorById(String uuid) async {
-    try {
-      // Invalidamos el provider para forzar una recarga
-      ref.invalidate(getProfessorByIdProvider(uuid));
-      
-      // Esperamos el resultado
-      return await ref.read(getProfessorByIdProvider(uuid).future);
-    } catch (error) {
-      Fluttertoast.showToast(
-        msg: "Error al obtener profesor: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
-      rethrow;
-    }
+  String _getProviderKey(String uuid) => 'professor_by_id_$uuid';
+
+  Future<void> fetch(String uuid) async {
+    final key = _getProviderKey(uuid);
+    final notifier = ref.read(_professorByIdProvider(key).notifier);
+    
+    await notifier.fetchData(() async {
+      return await professorService.getProfessorById(uuid);
+    });
+  }
+  
+  QueryState<Professor> getState(String uuid) {
+    return ref.watch(_professorByIdProvider(_getProviderKey(uuid)));
+  }
+  
+  void invalidate(String uuid) {
+    ref.invalidate(_professorByIdProvider(_getProviderKey(uuid)));
   }
 }
 
 // Hook para obtener profesores por especialidad
 class UseGetProfessorsBySpecialty {
   final WidgetRef ref;
+  final IProfessorService professorService;
+  final _professorsBySpecialtyProvider = queryProviderFamily<List<Professor>>();
 
-  UseGetProfessorsBySpecialty(this.ref);
+  UseGetProfessorsBySpecialty(this.ref)
+      : professorService = ref.read(professorServiceProvider);
 
-  Future<List<Professor>> getProfessorsBySpecialty(String especialidad) async {
-    try {
-      // Invalidamos el provider para forzar una recarga
-      ref.invalidate(getProfessorsBySpecialtyProvider(especialidad));
-      
-      // Esperamos el resultado
-      return await ref.read(getProfessorsBySpecialtyProvider(especialidad).future);
-    } catch (error) {
-      Fluttertoast.showToast(
-        msg: "Error al obtener profesores por especialidad: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
-      rethrow;
-    }
+  String _getProviderKey(String especialidad) => 'professors_by_specialty_$especialidad';
+
+  Future<void> fetch(String especialidad) async {
+    final key = _getProviderKey(especialidad);
+    final notifier = ref.read(_professorsBySpecialtyProvider(key).notifier);
+    
+    await notifier.fetchData(() async {
+      return await professorService.getProfessorsBySpecialty(especialidad);
+    });
+  }
+  
+  QueryState<List<Professor>> getState(String especialidad) {
+    return ref.watch(_professorsBySpecialtyProvider(_getProviderKey(especialidad)));
+  }
+  
+  void invalidate(String especialidad) {
+    ref.invalidate(_professorsBySpecialtyProvider(_getProviderKey(especialidad)));
   }
 }
 
 // Hook para obtener carga académica de un profesor
 class UseGetProfessorAcademicLoad {
   final WidgetRef ref;
+  final IProfessorService professorService;
+  final _academicLoadProvider = queryProviderFamily<List<AcademicLoad>>();
 
-  UseGetProfessorAcademicLoad(this.ref);
+  UseGetProfessorAcademicLoad(this.ref)
+      : professorService = ref.read(professorServiceProvider);
 
-  Future<List<AcademicLoad>> getProfessorAcademicLoad(String uuid) async {
-    try {
-      // Invalidamos el provider para forzar una recarga
-      ref.invalidate(getProfessorAcademicLoadProvider(uuid));
-      
-      // Esperamos el resultado
-      return await ref.read(getProfessorAcademicLoadProvider(uuid).future);
-    } catch (error) {
-      Fluttertoast.showToast(
-        msg: "Error al obtener carga académica: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
-      rethrow;
-    }
+  String _getProviderKey(String uuid) => 'professor_academic_load_$uuid';
+
+  Future<void> fetch(String uuid) async {
+    final key = _getProviderKey(uuid);
+    final notifier = ref.read(_academicLoadProvider(key).notifier);
+    
+    await notifier.fetchData(() async {
+      return await professorService.getProfessorAcademicLoad(uuid);
+    });
+  }
+  
+  QueryState<List<AcademicLoad>> getState(String uuid) {
+    return ref.watch(_academicLoadProvider(_getProviderKey(uuid)));
+  }
+  
+  void invalidate(String uuid) {
+    ref.invalidate(_academicLoadProvider(_getProviderKey(uuid)));
   }
 }
 
@@ -271,22 +292,25 @@ class UseGetProfessorAcademicLoad {
 class UseCheckProfessorAvailability {
   final WidgetRef ref;
   final IProfessorService professorService;
+  final _availabilityProvider = queryProviderFamily<bool>();
 
   UseCheckProfessorAvailability(this.ref)
       : professorService = ref.read(professorServiceProvider);
 
-  Future<bool> checkProfessorAvailability(AvailabilityQuery query) async {
-    try {
-      // Verificar disponibilidad del profesor
+  String _getProviderKey(AvailabilityQuery query) => 
+      'professor_availability_${query.toString()}';
+
+  Future<void> check(AvailabilityQuery query) async {
+    final key = _getProviderKey(query);
+    final notifier = ref.read(_availabilityProvider(key).notifier);
+    
+    await notifier.fetchData(() async {
       return await professorService.checkProfessorAvailability(query);
-    } catch (error) {
-      Fluttertoast.showToast(
-        msg: "Error al verificar disponibilidad: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
-      rethrow;
-    }
+    });
+  }
+  
+  QueryState<bool> getState(AvailabilityQuery query) {
+    return ref.watch(_availabilityProvider(_getProviderKey(query)));
   }
 }
 
