@@ -32,13 +32,46 @@ class Professor {
     );
   }
 
-  // Constructor para datos recibidos al obtener todos los profesores o uno por ID
-  factory Professor.fromGetResponse(Map<String, dynamic> json) {
-    return Professor(
-      uuid: json['uuid'],
-      username: json['username'],
-      telefono: json['telefono'],
-      especialidad: json['especialidad'],
+  // Constructor mejorado que acepta tanto Map como String
+  factory Professor.fromGetResponse(dynamic json) {
+    // Si la respuesta es un String (mensaje de éxito), devolvemos un profesor con datos mínimos
+    if (json is String) {
+      // Creamos un UUID temporal basado en la fecha
+      return Professor(
+        uuid: 'temp-${DateTime.now().millisecondsSinceEpoch}',
+        username: 'Nuevo Profesor', // Valor predeterminado
+        telefono: '',
+        especialidad: '',
+      );
+    }
+    
+    // Si la respuesta es un Map (JSON), procesamos normalmente
+    if (json is Map<String, dynamic>) {
+      // Verificar si la respuesta contiene userEntity (estructura común en APIs)
+      if (json.containsKey('userEntity') && json['userEntity'] is Map) {
+        final userEntity = json['userEntity'] as Map<String, dynamic>;
+        return Professor(
+          uuid: json['uuid'] ?? json['id'],
+          username: userEntity['username'] ?? '',
+          email: userEntity['email'],
+          telefono: json['telefono'] ?? '',
+          especialidad: json['especialidad'] ?? '',
+        );
+      }
+      
+      // Formato normal sin userEntity
+      return Professor(
+        uuid: json['uuid'],
+        username: json['username'],
+        email: json['email'],
+        telefono: json['telefono'],
+        especialidad: json['especialidad'],
+      );
+    }
+    
+    // Si no es ni String ni Map, lanzamos una excepción más descriptiva
+    throw FormatException(
+      'Se esperaba un objeto JSON o un string, pero se recibió: ${json.runtimeType}',
     );
   }
 
