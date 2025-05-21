@@ -37,20 +37,7 @@ class DataTableWidget extends StatelessWidget {
                       style: AppStyles.dashboardTitleStyle,
                     ),
                     const SizedBox(height: 10),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        // Implementar acción de agregar
-                      },
-                      icon: const Icon(Icons.add),
-                      label: const Text('Agregar'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppStyles.primaryBlue,
-                        foregroundColor: AppStyles.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
+                   
                   ],
                 )
               : Row(

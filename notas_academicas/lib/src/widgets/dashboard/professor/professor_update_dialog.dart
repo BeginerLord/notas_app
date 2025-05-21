@@ -20,16 +20,19 @@ class ProfessorUpdateDialog extends HookConsumerWidget {
     final emailController = useTextEditingController(
       text: professor.email ?? '',
     );
-    final passwordController = useTextEditingController();  // Añadido: controller para contraseña
+    final passwordController =
+        useTextEditingController(); // Añadido: controller para contraseña
     final telefonoController = useTextEditingController(
       text: professor.telefono,
     );
     final especialidadController = useTextEditingController(
       text: professor.especialidad,
     );
-    
+
     // Estado para controlar la visibilidad de la contraseña
-    final isPasswordVisible = useState(false);  // Añadido: estado para visibilidad de contraseña
+    final isPasswordVisible = useState(
+      false,
+    ); // Añadido: estado para visibilidad de contraseña
 
     // Estados para manejar la validación y carga
     final isLoading = useState(false);
@@ -50,7 +53,8 @@ class ProfessorUpdateDialog extends HookConsumerWidget {
         final uuid = professor.uuid;
         final username = usernameController.text;
         final email = emailController.text;
-        final password = passwordController.text;  // Añadido: obtener valor de contraseña
+        final password =
+            passwordController.text; // Añadido: obtener valor de contraseña
         final telefono = telefonoController.text;
         final especialidad = especialidadController.text;
 
@@ -60,7 +64,10 @@ class ProfessorUpdateDialog extends HookConsumerWidget {
           professor.copyWith(
             username: username,
             email: email,
-            password: password.isNotEmpty ? password : null,  // Añadido: incluir contraseña solo si no está vacía
+            password:
+                password.isNotEmpty
+                    ? password
+                    : null, // Añadido: incluir contraseña solo si no está vacía
             telefono: telefono,
             especialidad: especialidad,
           ),

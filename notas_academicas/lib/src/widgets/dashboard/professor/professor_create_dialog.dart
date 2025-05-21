@@ -5,6 +5,7 @@ import 'package:notas_academicas/src/hooks/Professor/index.dart';
 import 'package:notas_academicas/src/app_styles.dart';
 import 'package:notas_academicas/src/models/professor_model.dart';
 import 'package:notas_academicas/src/widgets/Auth/custom_text_field.dart';
+import 'package:notas_academicas/src/widgets/dashboard/professor/professor_specialty.dart';
 
 class ProfessorCreateDialog extends HookConsumerWidget {
   const ProfessorCreateDialog({super.key});
@@ -17,26 +18,26 @@ class ProfessorCreateDialog extends HookConsumerWidget {
     final passwordController = useTextEditingController();
     final telefonoController = useTextEditingController();
     final especialidadController = useTextEditingController();
-    
+
     // Añadido: Estado para la visibilidad de la contraseña
     final isPasswordVisible = useState(false);
-    
+
     // Estados para manejar la validación y carga
     final isLoading = useState(false);
     final errorMessage = useState<String?>(null);
     final formKey = useMemoized(() => GlobalKey<FormState>());
-    
+
     // Hook para crear profesor
     final createProfessorHook = UseCreateProfessor(ref);
 
     // Función para crear profesor
     Future<void> createProfessor() async {
       if (!formKey.currentState!.validate()) return;
-      
+
       try {
         isLoading.value = true;
         errorMessage.value = null;
-        
+
         final professor = Professor.create(
           username: usernameController.text,
           email: emailController.text,
@@ -44,10 +45,10 @@ class ProfessorCreateDialog extends HookConsumerWidget {
           telefono: telefonoController.text,
           especialidad: especialidadController.text,
         );
-        
+
         // Llamada al hook para crear profesor
         await createProfessorHook.createProfessor(professor);
-        
+
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -88,7 +89,7 @@ class ProfessorCreateDialog extends HookConsumerWidget {
                       style: const TextStyle(color: Colors.red),
                     ),
                   ),
-                
+
                 CustomTextField(
                   label: 'Nombre Completo',
                   controller: usernameController,
@@ -99,7 +100,7 @@ class ProfessorCreateDialog extends HookConsumerWidget {
                     return null;
                   },
                 ),
-                
+
                 CustomTextField(
                   label: 'Correo Electrónico',
                   controller: emailController,
@@ -114,7 +115,7 @@ class ProfessorCreateDialog extends HookConsumerWidget {
                     return null;
                   },
                 ),
-                
+
                 CustomTextField(
                   label: 'Contraseña',
                   controller: passwordController,
@@ -141,17 +142,8 @@ class ProfessorCreateDialog extends HookConsumerWidget {
                     return null;
                   },
                 ),
-                
-                CustomTextField(
-                  label: 'Especialidad',
-                  controller: especialidadController,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Por favor ingresa una especialidad';
-                    }
-                    return null;
-                  },
-                ),
+
+                ProfessorSpecialtyDropdown(controller: especialidadController),
               ],
             ),
           ),
@@ -159,32 +151,27 @@ class ProfessorCreateDialog extends HookConsumerWidget {
       ),
       actions: [
         TextButton(
-          onPressed: isLoading.value 
-              ? null 
-              : () => Navigator.pop(context, false),
-          child: Text(
-            'Cancelar',
-            style: TextStyle(color: AppStyles.navyBlue),
-          ),
+          onPressed:
+              isLoading.value ? null : () => Navigator.pop(context, false),
+          child: Text('Cancelar', style: TextStyle(color: AppStyles.navyBlue)),
         ),
         ElevatedButton(
           onPressed: isLoading.value ? null : createProfessor,
           style: AppStyles.primaryButtonStyle,
-          child: isLoading.value
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
-                )
-              : const Text('Guardar'),
+          child:
+              isLoading.value
+                  ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                  : const Text('Guardar'),
         ),
       ],
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       backgroundColor: AppStyles.white,
       elevation: 5,
     );
