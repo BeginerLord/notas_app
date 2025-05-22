@@ -26,16 +26,34 @@ class Section {
     );
   }
 
-  // Constructor para datos recibidos al obtener todas las secciones o una por ID
-  factory Section.fromGetResponse(Map<String, dynamic> json) {
-    return Section(
-      id: json['id'],
-      sectionName: json['sectionName'] ?? '',
-      grade: json['grade'],
-      studentCount: json['studentCount'],
-      subjectNames: json['subjectNames'] != null
-          ? List<String>.from(json['subjectNames'])
-          : null,
+  // Constructor mejorado que acepta tanto Map como String
+  factory Section.fromGetResponse(dynamic json) {
+    // Si la respuesta es un String (mensaje de éxito), devolvemos una sección con datos mínimos
+    if (json is String) {
+      return Section(
+        id: null,
+        sectionName: 'Nueva Sección', // Valor predeterminado
+        gradeId: null,
+      );
+    }
+    
+    // Si la respuesta es un Map (JSON), procesamos normalmente
+    if (json is Map<String, dynamic>) {
+      return Section(
+        id: json['id'],
+        sectionName: json['sectionName'] ?? '',
+        grade: json['grade'],
+        studentCount: json['studentCount'],
+        subjectNames: json['subjectNames'] != null
+            ? List<String>.from(json['subjectNames'])
+            : null,
+        gradeId: json['gradeId'],
+      );
+    }
+    
+    // Si no es ni String ni Map, lanzamos una excepción más descriptiva
+    throw FormatException(
+      'Se esperaba un objeto JSON o un string, pero se recibió: ${json.runtimeType}',
     );
   }
 
@@ -72,5 +90,10 @@ class Section {
       subjectNames: subjectNames ?? this.subjectNames,
       gradeId: gradeId ?? this.gradeId,
     );
+  }
+  
+  @override
+  String toString() {
+    return 'Section(id: $id, sectionName: $sectionName, gradeId: $gradeId)';
   }
 }
