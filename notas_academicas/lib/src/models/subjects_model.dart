@@ -32,17 +32,39 @@ class Subject {
     );
   }
 
-  // Constructor para datos recibidos al obtener todas las materias o una por ID
-  factory Subject.fromGetResponse(Map<String, dynamic> json) {
-    return Subject(
-      id: json['id'],
-      subjectName: json['subjectName'],
-      profesorNombre: json['profesorNombre'],
-      profesorEmail: json['profesorEmail'],
-      especialidad: json['especialidad'],
-      grados: json['grados'] != null 
-          ? List<String>.from(json['grados']) 
-          : null,
+  // Constructor mejorado que acepta tanto Map como String
+  factory Subject.fromGetResponse(dynamic json) {
+    // Si la respuesta es un String (mensaje de éxito), devolvemos una materia con datos mínimos
+    if (json is String) {
+      return Subject(
+        id: null,
+        subjectName: 'Nueva Materia', // Valor predeterminado
+        professorUuid: null,
+        gradeIds: [],
+      );
+    }
+    
+    // Si la respuesta es un Map (JSON), procesamos normalmente
+    if (json is Map<String, dynamic>) {
+      return Subject(
+        id: json['id'],
+        subjectName: json['subjectName'] ?? '',
+        profesorNombre: json['profesorNombre'],
+        profesorEmail: json['profesorEmail'],
+        especialidad: json['especialidad'],
+        grados: json['grados'] != null 
+            ? List<String>.from(json['grados']) 
+            : null,
+        professorUuid: json['professorUuid'],
+        gradeIds: json['gradeIds'] != null 
+            ? List<int>.from(json['gradeIds']) 
+            : null,
+      );
+    }
+    
+    // Si no es ni String ni Map, lanzamos una excepción más descriptiva
+    throw FormatException(
+      'Se esperaba un objeto JSON o un string, pero se recibió: ${json.runtimeType}',
     );
   }
 
@@ -85,5 +107,10 @@ class Subject {
       professorUuid: professorUuid ?? this.professorUuid,
       gradeIds: gradeIds ?? this.gradeIds,
     );
+  }
+  
+  @override
+  String toString() {
+    return 'Subject(id: $id, subjectName: $subjectName)';
   }
 }

@@ -99,7 +99,7 @@ class SubjectServiceImpl implements ISubjectService {
     await initializeApi();
     
     // Construye la URL con los parámetros de paginación y el ID del profesor
-    final url = '/professor?professorId=$professorId&page=$page&size=$size&sortBy=$sortBy&direction=$direction';
+    final url = '/subject/professor?professorId=$professorId&page=$page&size=$size&sortBy=$sortBy&direction=$direction';
     
     // Realiza la solicitud GET para obtener materias por profesor
     final response = await api.get(url);
