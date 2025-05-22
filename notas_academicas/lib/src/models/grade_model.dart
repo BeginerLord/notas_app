@@ -16,11 +16,27 @@ class Grade {
     );
   }
 
-  // Constructor para datos recibidos al obtener todos los grados o uno por ID
-  factory Grade.fromGetResponse(Map<String, dynamic> json) {
-    return Grade(
-      gradeId: json['gradeId'],
-      grade: json['grade'] ?? '',
+  // Constructor mejorado que acepta tanto Map como String
+  factory Grade.fromGetResponse(dynamic json) {
+    // Si la respuesta es un String (mensaje de éxito), devolvemos un grado con datos mínimos
+    if (json is String) {
+      return Grade(
+        gradeId: null,
+        grade: 'Nuevo Grado', // Valor predeterminado
+      );
+    }
+    
+    // Si la respuesta es un Map (JSON), procesamos normalmente
+    if (json is Map<String, dynamic>) {
+      return Grade(
+        gradeId: json['gradeId'] ?? json['id'],
+        grade: json['grade'] ?? '',
+      );
+    }
+    
+    // Si no es ni String ni Map, lanzamos una excepción más descriptiva
+    throw FormatException(
+      'Se esperaba un objeto JSON o un string, pero se recibió: ${json.runtimeType}',
     );
   }
 
@@ -77,5 +93,10 @@ class GradeSubjectAssignment {
               .toList() ??
           [],
     );
+  }
+  
+  @override
+  String toString() {
+    return 'GradeId:$gradeId-SubjectIds:${subjectIds.join(",")}';
   }
 }

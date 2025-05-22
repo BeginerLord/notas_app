@@ -2,6 +2,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:notas_academicas/src/models/pagination_model.dart';
 import 'package:notas_academicas/src/models/grade_model.dart';
 import 'package:notas_academicas/src/providers/api_provider.dart';
+import 'package:notas_academicas/src/providers/query_provider.dart';
 import 'package:notas_academicas/src/services/Grade/grade_service_impl.dart';
 import 'package:notas_academicas/src/services/Grade/i_grade_service.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -13,60 +14,56 @@ final gradeServiceProvider = Provider<IGradeService>((ref) {
   return GradeServiceImpl(api);
 });
 
-// Provider para obtener todos los grados con paginación
-final getAllGradesProvider = FutureProvider.family<PaginatedResponse<Grade>, Map<String, dynamic>>(
-  (ref, params) async {
-    final gradeService = ref.read(gradeServiceProvider);
-    return gradeService.getAllGrades(
-      page: params['page'] ?? 0,
-      size: params['size'] ?? 10,
-      sortBy: params['sortBy'] ?? 'grade',
-      direction: params['direction'] ?? 'asc',
-    );
-  },
-);
-
-// Provider para obtener un grado por ID
-final getGradeByIdProvider = FutureProvider.family<Grade, int>(
-  (ref, id) async {
-    final gradeService = ref.read(gradeServiceProvider);
-    return gradeService.getGradeById(id);
-  },
-);
-
 // Hook para obtener todos los grados
 class UseGetAllGrades {
   final WidgetRef ref;
+  final IGradeService gradeService;
+  final _allGradesProvider = queryProviderFamily<PaginatedResponse<Grade>>();
 
-  UseGetAllGrades(this.ref);
+  UseGetAllGrades(this.ref)
+      : gradeService = ref.read(gradeServiceProvider);
 
-  Future<PaginatedResponse<Grade>> getAllGrades({
+  String _getProviderKey(int page, int size, String sortBy, String direction) {
+    return 'all_grades_${page}_${size}_${sortBy}_$direction';
+  }
+
+  Future<void> fetch({
     int page = 0,
     int size = 10,
     String sortBy = 'grade',
     String direction = 'asc',
   }) async {
-    try {
-      final params = {
-        'page': page,
-        'size': size,
-        'sortBy': sortBy,
-        'direction': direction,
-      };
-      
-      // Invalidamos el provider para forzar una recarga
-      ref.invalidate(getAllGradesProvider(params));
-      
-      // Esperamos el resultado
-      return await ref.read(getAllGradesProvider(params).future);
-    } catch (error) {
-      Fluttertoast.showToast(
-        msg: "Error al obtener grados: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
+    final key = _getProviderKey(page, size, sortBy, direction);
+    final notifier = ref.read(_allGradesProvider(key).notifier);
+    
+    await notifier.fetchData(() async {
+      return await gradeService.getAllGrades(
+        page: page,
+        size: size, 
+        sortBy: sortBy,
+        direction: direction,
       );
-      rethrow;
-    }
+    });
+  }
+  
+  QueryState<PaginatedResponse<Grade>> getState({
+    int page = 0,
+    int size = 10,
+    String sortBy = 'grade',
+    String direction = 'asc',
+  }) {
+    final key = _getProviderKey(page, size, sortBy, direction);
+    return ref.watch(_allGradesProvider(key));
+  }
+  
+  void invalidate({
+    int page = 0,
+    int size = 10,
+    String sortBy = 'grade',
+    String direction = 'asc',
+  }) {
+    final key = _getProviderKey(page, size, sortBy, direction);
+    ref.invalidate(_allGradesProvider(key));
   }
 }
 
@@ -74,35 +71,42 @@ class UseGetAllGrades {
 class UseCreateGrade {
   final WidgetRef ref;
   final IGradeService gradeService;
+  final _createGradeProvider = queryProviderFamily<Grade>();
 
   UseCreateGrade(this.ref) 
       : gradeService = ref.read(gradeServiceProvider);
 
-  Future<Grade> createGrade(Grade grade) async {
-    try {
-      // Ejecutar la operación de crear grado
-      final createdGrade = await gradeService.createGrade(grade);
-      
+  Future<void> createGrade(Grade grade) async {
+    final key = 'create_grade_${DateTime.now().millisecondsSinceEpoch}';
+    final notifier = ref.read(_createGradeProvider(key).notifier);
+    
+    await notifier.fetchData(() async {
+      return await gradeService.createGrade(grade);
+    });
+    
+    final state = ref.read(_createGradeProvider(key));
+    
+    if (state.error != null) {
+      Fluttertoast.showToast(
+        msg: "Error al crear grado: ${state.error}",
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+      );
+      throw Exception(state.error);
+    } else if (state.data != null) {
       // Invalidar consultas previas para forzar recarga de datos
-      ref.invalidate(getAllGradesProvider);
+      UseGetAllGrades(ref).invalidate();
       
-      // Mostrar mensaje de éxito
       Fluttertoast.showToast(
         msg: "Grado creado exitosamente",
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
       );
-      
-      return createdGrade;
-    } catch (error) {
-      // Manejar errores y notificar
-      Fluttertoast.showToast(
-        msg: "Error al crear grado: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
-      rethrow;
     }
+  }
+  
+  QueryState<Grade> getState(String key) {
+    return ref.watch(_createGradeProvider(key));
   }
 }
 
@@ -110,36 +114,45 @@ class UseCreateGrade {
 class UseUpdateGrade {
   final WidgetRef ref;
   final IGradeService gradeService;
+  final _updateGradeProvider = queryProviderFamily<Grade>();
 
   UseUpdateGrade(this.ref)
       : gradeService = ref.read(gradeServiceProvider);
 
-  Future<Grade> updateGrade(int id, Grade grade) async {
-    try {
-      // Ejecutar la operación de actualizar grado
-      final updatedGrade = await gradeService.updateGrade(id, grade);
+  String _getProviderKey(int id) => 'update_grade_$id';
+
+  Future<void> updateGrade(int id, Grade grade) async {
+    final key = _getProviderKey(id);
+    final notifier = ref.read(_updateGradeProvider(key).notifier);
+    
+    await notifier.fetchData(() async {
+      return await gradeService.updateGrade(id, grade);
+    });
+    
+    final state = ref.read(_updateGradeProvider(key));
+    
+    if (state.error != null) {
+      Fluttertoast.showToast(
+        msg: "Error al actualizar grado: ${state.error}",
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+      );
+      throw Exception(state.error);
+    } else if (state.data != null) {
+      // Invalidar consultas previas
+      UseGetAllGrades(ref).invalidate();
+      UseGetGradeById(ref).invalidate(id);
       
-      // Invalidar consultas previas para forzar recarga de datos
-      ref.invalidate(getAllGradesProvider);
-      ref.invalidate(getGradeByIdProvider(id));
-      
-      // Mostrar mensaje de éxito
       Fluttertoast.showToast(
         msg: "Grado actualizado exitosamente",
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
       );
-      
-      return updatedGrade;
-    } catch (error) {
-      // Manejar errores y notificar
-      Fluttertoast.showToast(
-        msg: "Error al actualizar grado: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
-      rethrow;
     }
+  }
+  
+  QueryState<Grade> getState(int id) {
+    return ref.watch(_updateGradeProvider(_getProviderKey(id)));
   }
 }
 
@@ -147,59 +160,73 @@ class UseUpdateGrade {
 class UseDeleteGrade {
   final WidgetRef ref;
   final IGradeService gradeService;
+  final _deleteGradeProvider = queryProviderFamily<bool>();
 
   UseDeleteGrade(this.ref)
       : gradeService = ref.read(gradeServiceProvider);
 
-  Future<bool> deleteGrade(int id) async {
-    try {
-      // Ejecutar la operación de eliminar grado
-      final result = await gradeService.deleteGrade(id);
+  String _getProviderKey(int id) => 'delete_grade_$id';
+
+  Future<void> deleteGrade(int id) async {
+    final key = _getProviderKey(id);
+    final notifier = ref.read(_deleteGradeProvider(key).notifier);
+    
+    await notifier.fetchData(() async {
+      return await gradeService.deleteGrade(id);
+    });
+    
+    final state = ref.read(_deleteGradeProvider(key));
+    
+    if (state.error != null) {
+      Fluttertoast.showToast(
+        msg: "Error al eliminar grado: ${state.error}",
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+      );
+      throw Exception(state.error);
+    } else if (state.data != null && state.data!) {
+      // Invalidar consultas previas
+      UseGetAllGrades(ref).invalidate();
       
-      // Invalidar consultas previas para forzar recarga de datos
-      ref.invalidate(getAllGradesProvider);
-      
-      // Mostrar mensaje de éxito
       Fluttertoast.showToast(
         msg: "Grado eliminado exitosamente",
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
       );
-      
-      return result;
-    } catch (error) {
-      // Manejar errores y notificar
-      Fluttertoast.showToast(
-        msg: "Error al eliminar grado: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
-      rethrow;
     }
+  }
+  
+  QueryState<bool> getState(int id) {
+    return ref.watch(_deleteGradeProvider(_getProviderKey(id)));
   }
 }
 
 // Hook para obtener un grado por ID
 class UseGetGradeById {
   final WidgetRef ref;
+  final IGradeService gradeService;
+  final _gradeByIdProvider = queryProviderFamily<Grade>();
 
-  UseGetGradeById(this.ref);
+  UseGetGradeById(this.ref)
+      : gradeService = ref.read(gradeServiceProvider);
 
-  Future<Grade> getGradeById(int id) async {
-    try {
-      // Invalidamos el provider para forzar una recarga
-      ref.invalidate(getGradeByIdProvider(id));
-      
-      // Esperamos el resultado
-      return await ref.read(getGradeByIdProvider(id).future);
-    } catch (error) {
-      Fluttertoast.showToast(
-        msg: "Error al obtener grado: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
-      rethrow;
-    }
+  String _getProviderKey(int id) => 'grade_by_id_$id';
+
+  Future<void> fetch(int id) async {
+    final key = _getProviderKey(id);
+    final notifier = ref.read(_gradeByIdProvider(key).notifier);
+    
+    await notifier.fetchData(() async {
+      return await gradeService.getGradeById(id);
+    });
+  }
+  
+  QueryState<Grade> getState(int id) {
+    return ref.watch(_gradeByIdProvider(_getProviderKey(id)));
+  }
+  
+  void invalidate(int id) {
+    ref.invalidate(_gradeByIdProvider(_getProviderKey(id)));
   }
 }
 
@@ -207,36 +234,46 @@ class UseGetGradeById {
 class UseAssignSubjectsToGrade {
   final WidgetRef ref;
   final IGradeService gradeService;
+  final _assignSubjectsProvider = queryProviderFamily<bool>();
 
   UseAssignSubjectsToGrade(this.ref)
       : gradeService = ref.read(gradeServiceProvider);
 
-  Future<bool> assignSubjectsToGrade(GradeSubjectAssignment assignment) async {
-    try {
-      // Ejecutar la operación de asignar materias
-      final result = await gradeService.assignSubjectsToGrade(assignment);
+  String _getProviderKey(GradeSubjectAssignment assignment) => 
+      'assign_subjects_to_grade_${assignment.toString()}';
+
+  Future<void> assignSubjectsToGrade(GradeSubjectAssignment assignment) async {
+    final key = _getProviderKey(assignment);
+    final notifier = ref.read(_assignSubjectsProvider(key).notifier);
+    
+    await notifier.fetchData(() async {
+      return await gradeService.assignSubjectsToGrade(assignment);
+    });
+    
+    final state = ref.read(_assignSubjectsProvider(key));
+    
+    if (state.error != null) {
+      Fluttertoast.showToast(
+        msg: "Error al asignar materias: ${state.error}",
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+      );
+      throw Exception(state.error);
+    } else if (state.data != null && state.data!) {
+      // Invalidar consultas relacionadas
+      UseGetAllGrades(ref).invalidate();
+      UseGetGradeById(ref).invalidate(assignment.gradeId);
       
-      // Invalidar consultas para refrescar datos
-      ref.invalidate(getGradeByIdProvider(assignment.gradeId));
-      ref.invalidate(getAllGradesProvider);
-      
-      // Mostrar mensaje de éxito
       Fluttertoast.showToast(
         msg: "Materias asignadas exitosamente",
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
       );
-      
-      return result;
-    } catch (error) {
-      // Manejar errores y notificar
-      Fluttertoast.showToast(
-        msg: "Error al asignar materias: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
-      rethrow;
     }
+  }
+  
+  QueryState<bool> getState(GradeSubjectAssignment assignment) {
+    return ref.watch(_assignSubjectsProvider(_getProviderKey(assignment)));
   }
 }
 

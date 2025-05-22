@@ -30,7 +30,7 @@ class GradeServiceImpl implements IGradeService {
     return Grade.fromGetResponse(response.data);
   }
 
-   @override
+  @override
   Future<PaginatedResponse<Grade>> getAllGrades({
     int page = 0,
     int size = 10,
@@ -51,6 +51,7 @@ class GradeServiceImpl implements IGradeService {
       (json) => Grade.fromGetResponse(json),
     );
   }
+
   @override
   Future<Grade> getGradeById(int id) async {
     await initializeApi();
