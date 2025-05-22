@@ -46,7 +46,10 @@ class StudentServiceImpl implements IStudentService {
     final response = await api.get(url);
     
     // Convierte la respuesta en un objeto PaginatedResponse<Student>
-    return PaginatedResponse.fromJsonStudent(response.data);
+    return PaginatedResponse.fromJson(
+      response.data,
+      (json) => Student.fromGetResponse(json),
+    );
   }
 
   @override
