@@ -42,18 +42,38 @@ class Schedule {
     );
   }
 
-  // Constructor para datos recibidos al obtener horarios de profesor o estudiante
-  factory Schedule.fromGetResponse(Map<String, dynamic> json) {
-    return Schedule(
-      dia: json['dia'] ?? '',
-      horaInicio: json['horaInicio'] ?? '',
-      horaFin: json['horaFin'] ?? '',
-      sectionName: json['sectionName'],
-      subjectName: json['subjectName'],
-      grade: json['grade'],
-      professorUsername: json['professorUsername'],
-      id: json['id'],
-      confirmado: json['confirmado'],
+  // Constructor mejorado que acepta tanto Map como String
+  factory Schedule.fromGetResponse(dynamic json) {
+    // Si la respuesta es un String (mensaje de éxito), devolvemos un horario con datos mínimos
+    if (json is String) {
+      return Schedule(
+        id: null,
+        dia: 'Nuevo Día',
+        horaInicio: '00:00', 
+        horaFin: '00:00',
+      );
+    }
+    
+    // Si la respuesta es un Map (JSON), procesamos normalmente
+    if (json is Map<String, dynamic>) {
+      return Schedule(
+        id: json['id'],
+        dia: json['dia'] ?? '',
+        horaInicio: json['horaInicio'] ?? '',
+        horaFin: json['horaFin'] ?? '',
+        sectionName: json['sectionName'],
+        subjectName: json['subjectName'],
+        grade: json['grade'],
+        professorUsername: json['professorUsername'],
+        sectionId: json['sectionId'],
+        subjectId: json['subjectId'],
+        confirmado: json['confirmado'],
+      );
+    }
+    
+    // Si no es ni String ni Map, lanzamos una excepción más descriptiva
+    throw FormatException(
+      'Se esperaba un objeto JSON o un string, pero se recibió: ${json.runtimeType}',
     );
   }
 
@@ -96,6 +116,11 @@ class Schedule {
       confirmado: confirmado ?? this.confirmado,
     );
   }
+  
+  @override
+  String toString() {
+    return 'Schedule(id: $id, dia: $dia, horaInicio: $horaInicio, horaFin: $horaFin)';
+  }
 }
 
 // Modelo para confirmar un horario
@@ -113,5 +138,10 @@ class ScheduleConfirmation {
       'profesorUuid': profesorUuid,
       'horarioId': horarioId,
     };
+  }
+  
+  @override
+  String toString() {
+    return 'ScheduleConfirmation(profesorUuid: $profesorUuid, horarioId: $horarioId)';
   }
 }

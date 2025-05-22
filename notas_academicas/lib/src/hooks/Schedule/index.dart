@@ -1,6 +1,7 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:notas_academicas/src/models/schedule_model.dart';
 import 'package:notas_academicas/src/providers/api_provider.dart';
+import 'package:notas_academicas/src/providers/query_provider.dart';
 import 'package:notas_academicas/src/services/Schedule/schedule_service_impl.dart';
 import 'package:notas_academicas/src/services/Schedule/i_schedule_service.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -12,58 +13,51 @@ final scheduleServiceProvider = Provider<IScheduleService>((ref) {
   return ScheduleServiceImpl(api);
 });
 
-// Provider para obtener horarios de un profesor
-final getProfessorScheduleProvider = FutureProvider.family<List<Schedule>, String>(
-  (ref, uuid) async {
-    final scheduleService = ref.read(scheduleServiceProvider);
-    return scheduleService.getProfessorSchedule(uuid);
-  },
-);
-
-// Provider para obtener horarios de un estudiante
-final getStudentScheduleProvider = FutureProvider.family<List<Schedule>, String>(
-  (ref, studentUuid) async {
-    final scheduleService = ref.read(scheduleServiceProvider);
-    return scheduleService.getStudentSchedule(studentUuid);
-  },
-);
-
 // Hook para asignar horario a un profesor
 class UseAssignScheduleToProfessor {
   final WidgetRef ref;
   final IScheduleService scheduleService;
+  final _assignScheduleProvider = queryProviderFamily<Schedule>();
 
   UseAssignScheduleToProfessor(this.ref)
-      : scheduleService = ref.read(scheduleServiceProvider);
+    : scheduleService = ref.read(scheduleServiceProvider);
 
-  Future<Schedule> assignScheduleToProfessor(Schedule schedule) async {
-    try {
-      // Ejecutar la operación de asignar horario a profesor
-      final assignedSchedule = await scheduleService.assignScheduleToProfessor(schedule);
-      
-      // Invalidar consultas previas para forzar recarga de datos
-      // Si tenemos el UUID del profesor, invalidamos sus horarios específicos
+  String _getProviderKey(Schedule schedule) =>
+      'assign_schedule_${DateTime.now().millisecondsSinceEpoch}';
+
+  Future<void> assignSchedule(Schedule schedule) async {
+    final key = _getProviderKey(schedule);
+    final notifier = ref.read(_assignScheduleProvider(key).notifier);
+
+    await notifier.fetchData(() async {
+      return await scheduleService.assignScheduleToProfessor(schedule);
+    });
+
+    final state = ref.read(_assignScheduleProvider(key));
+
+    if (state.error != null) {
+      Fluttertoast.showToast(
+        msg: "Error al asignar horario: ${state.error}",
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+      );
+      throw Exception(state.error);
+    } else if (state.data != null) {
+      // Si tenemos el username del profesor, invalidamos sus horarios específicos
       if (schedule.professorUsername != null) {
-        ref.invalidate(getProfessorScheduleProvider(schedule.professorUsername!));
+        UseGetProfessorSchedule(ref).invalidate(schedule.professorUsername!);
       }
-      
-      // Mostrar mensaje de éxito
+
       Fluttertoast.showToast(
         msg: "Horario asignado exitosamente",
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
       );
-      
-      return assignedSchedule;
-    } catch (error) {
-      // Manejar errores y notificar
-      Fluttertoast.showToast(
-        msg: "Error al asignar horario: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
-      rethrow;
     }
+  }
+
+  QueryState<Schedule> getState(String key) {
+    return ref.watch(_assignScheduleProvider(key));
   }
 }
 
@@ -71,83 +65,108 @@ class UseAssignScheduleToProfessor {
 class UseConfirmProfessorSchedule {
   final WidgetRef ref;
   final IScheduleService scheduleService;
+  final _confirmScheduleProvider = queryProviderFamily<bool>();
 
   UseConfirmProfessorSchedule(this.ref)
-      : scheduleService = ref.read(scheduleServiceProvider);
+    : scheduleService = ref.read(scheduleServiceProvider);
 
-  Future<bool> confirmProfessorSchedule(String profesorUuid, int horarioId) async {
-    try {
-      // Ejecutar la operación de confirmar horario de profesor
-      final result = await scheduleService.confirmProfessorSchedule(profesorUuid, horarioId);
-      
-      // Invalidar consultas previas para forzar recarga de datos
-      ref.invalidate(getProfessorScheduleProvider(profesorUuid));
-      
-      // Mostrar mensaje de éxito
+  String _getProviderKey(String profesorUuid, int horarioId) =>
+      'confirm_schedule_${profesorUuid}_$horarioId';
+
+  Future<void> confirmSchedule(String profesorUuid, int horarioId) async {
+    final key = _getProviderKey(profesorUuid, horarioId);
+    final notifier = ref.read(_confirmScheduleProvider(key).notifier);
+
+    await notifier.fetchData(() async {
+      return await scheduleService.confirmProfessorSchedule(
+        profesorUuid,
+        horarioId,
+      );
+    });
+
+    final state = ref.read(_confirmScheduleProvider(key));
+
+    if (state.error != null) {
+      Fluttertoast.showToast(
+        msg: "Error al confirmar horario: ${state.error}",
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+      );
+      throw Exception(state.error);
+    } else if (state.data != null && state.data!) {
+      // Invalidar consultas previas
+      UseGetProfessorSchedule(ref).invalidate(profesorUuid);
+
       Fluttertoast.showToast(
         msg: "Horario confirmado exitosamente",
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
       );
-      
-      return result;
-    } catch (error) {
-      // Manejar errores y notificar
-      Fluttertoast.showToast(
-        msg: "Error al confirmar horario: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
-      rethrow;
     }
+  }
+
+  QueryState<bool> getState(String profesorUuid, int horarioId) {
+    return ref.watch(
+      _confirmScheduleProvider(_getProviderKey(profesorUuid, horarioId)),
+    );
   }
 }
 
 // Hook para obtener horarios de un profesor
 class UseGetProfessorSchedule {
   final WidgetRef ref;
+  final IScheduleService scheduleService;
+  final _professorScheduleProvider = queryProviderFamily<List<Schedule>>();
 
-  UseGetProfessorSchedule(this.ref);
+  UseGetProfessorSchedule(this.ref)
+    : scheduleService = ref.read(scheduleServiceProvider);
 
-  Future<List<Schedule>> getProfessorSchedule(String uuid) async {
-    try {
-      // Invalidamos el provider para forzar una recarga
-      ref.invalidate(getProfessorScheduleProvider(uuid));
-      
-      // Esperamos el resultado
-      return await ref.read(getProfessorScheduleProvider(uuid).future);
-    } catch (error) {
-      Fluttertoast.showToast(
-        msg: "Error al obtener horarios del profesor: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
-      rethrow;
-    }
+  String _getProviderKey(String uuid) => 'professor_schedule_$uuid';
+
+  Future<void> fetch(String uuid) async {
+    final key = _getProviderKey(uuid);
+    final notifier = ref.read(_professorScheduleProvider(key).notifier);
+
+    await notifier.fetchData(() async {
+      return await scheduleService.getProfessorSchedule(uuid);
+    });
+  }
+
+  QueryState<List<Schedule>> getState(String uuid) {
+    return ref.watch(_professorScheduleProvider(_getProviderKey(uuid)));
+  }
+
+  void invalidate(String uuid) {
+    ref.invalidate(_professorScheduleProvider(_getProviderKey(uuid)));
   }
 }
 
 // Hook para obtener horarios de un estudiante
 class UseGetStudentSchedule {
   final WidgetRef ref;
+  final IScheduleService scheduleService;
+  final _studentScheduleProvider = queryProviderFamily<List<Schedule>>();
 
-  UseGetStudentSchedule(this.ref);
+  UseGetStudentSchedule(this.ref)
+    : scheduleService = ref.read(scheduleServiceProvider);
 
-  Future<List<Schedule>> getStudentSchedule(String studentUuid) async {
-    try {
-      // Invalidamos el provider para forzar una recarga
-      ref.invalidate(getStudentScheduleProvider(studentUuid));
-      
-      // Esperamos el resultado
-      return await ref.read(getStudentScheduleProvider(studentUuid).future);
-    } catch (error) {
-      Fluttertoast.showToast(
-        msg: "Error al obtener horarios del estudiante: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
-      rethrow;
-    }
+  String _getProviderKey(String studentUuid) => 'student_schedule_$studentUuid';
+
+  Future<void> fetch(String studentUuid) async {
+    final key = _getProviderKey(studentUuid);
+    final notifier = ref.read(_studentScheduleProvider(key).notifier);
+
+    await notifier.fetchData(() async {
+      return await scheduleService.getStudentSchedule(studentUuid);
+    });
+  }
+
+  QueryState<List<Schedule>> getState(String studentUuid) {
+    return ref.watch(_studentScheduleProvider(_getProviderKey(studentUuid)));
+  }
+
+  void invalidate(String studentUuid) {
+    ref.invalidate(_studentScheduleProvider(_getProviderKey(studentUuid)));
   }
 }
 
@@ -155,12 +174,12 @@ class UseGetStudentSchedule {
 extension ScheduleHooksExtension on BuildContext {
   WidgetRef get _ref => ProviderScope.containerOf(this) as WidgetRef;
 
-  UseAssignScheduleToProfessor get useAssignScheduleToProfessor => 
+  UseAssignScheduleToProfessor get useAssignScheduleToProfessor =>
       UseAssignScheduleToProfessor(_ref);
-  UseConfirmProfessorSchedule get useConfirmProfessorSchedule => 
+  UseConfirmProfessorSchedule get useConfirmProfessorSchedule =>
       UseConfirmProfessorSchedule(_ref);
-  UseGetProfessorSchedule get useGetProfessorSchedule => 
+  UseGetProfessorSchedule get useGetProfessorSchedule =>
       UseGetProfessorSchedule(_ref);
-  UseGetStudentSchedule get useGetStudentSchedule => 
+  UseGetStudentSchedule get useGetStudentSchedule =>
       UseGetStudentSchedule(_ref);
 }
