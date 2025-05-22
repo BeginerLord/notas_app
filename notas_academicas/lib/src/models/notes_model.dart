@@ -39,16 +39,34 @@ class Note {
     );
   }
 
-  // Constructor para datos recibidos al obtener todas las notas o una por ID
-  factory Note.fromGetResponse(Map<String, dynamic> json) {
-    return Note(
-      id: json['id'],
-      studentName: json['studentName'],
-      valor: (json['valor'] is int) 
-          ? (json['valor'] as int).toDouble() 
-          : (json['valor'] ?? 0.0),
-      periodo: json['periodo'] ?? '',
-      professorUsername: json['professorUsername'],
+  // Constructor mejorado que acepta tanto Map como String
+  factory Note.fromGetResponse(dynamic json) {
+    // Si la respuesta es un String (mensaje de éxito), devolvemos una nota con datos mínimos
+    if (json is String) {
+      return Note(
+        id: null,
+        valor: 0.0,
+        periodo: 'Nuevo Periodo', // Valor predeterminado
+      );
+    }
+    
+    // Si la respuesta es un Map (JSON), procesamos normalmente
+    if (json is Map<String, dynamic>) {
+      return Note(
+        id: json['id'],
+        studentName: json['studentName'],
+        valor: (json['valor'] is int) 
+            ? (json['valor'] as int).toDouble() 
+            : (json['valor'] ?? 0.0),
+        periodo: json['periodo'] ?? '',
+        professorUsername: json['professorUsername'],
+        studentUuid: json['studentUuid'],
+      );
+    }
+    
+    // Si no es ni String ni Map, lanzamos una excepción más descriptiva
+    throw FormatException(
+      'Se esperaba un objeto JSON o un string, pero se recibió: ${json.runtimeType}',
     );
   }
 
@@ -57,6 +75,7 @@ class Note {
     return {
       'valor': valor,
       'periodo': periodo,
+      if (studentUuid != null) 'studentUuid': studentUuid,
     };
   }
 
@@ -65,6 +84,7 @@ class Note {
     return {
       'valor': valor,
       'periodo': periodo,
+      if (studentUuid != null) 'studentUuid': studentUuid,
     };
   }
 
@@ -85,5 +105,10 @@ class Note {
       professorUsername: professorUsername ?? this.professorUsername,
       studentUuid: studentUuid ?? this.studentUuid,
     );
+  }
+  
+  @override
+  String toString() {
+    return 'Note(id: $id, valor: $valor, periodo: $periodo)';
   }
 }

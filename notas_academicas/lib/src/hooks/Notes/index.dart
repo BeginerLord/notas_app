@@ -2,6 +2,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:notas_academicas/src/models/pagination_model.dart';
 import 'package:notas_academicas/src/models/notes_model.dart';
 import 'package:notas_academicas/src/providers/api_provider.dart';
+import 'package:notas_academicas/src/providers/query_provider.dart';
 import 'package:notas_academicas/src/services/Notes/note_service_impl.dart';
 import 'package:notas_academicas/src/services/Notes/i_note_service.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -13,60 +14,56 @@ final noteServiceProvider = Provider<INoteService>((ref) {
   return NoteServiceImpl(api);
 });
 
-// Provider para obtener todas las notas con paginación
-final getAllNotesProvider = FutureProvider.family<PaginatedResponse<Note>, Map<String, dynamic>>(
-  (ref, params) async {
-    final noteService = ref.read(noteServiceProvider);
-    return noteService.getAllNotes(
-      page: params['page'] ?? 0,
-      size: params['size'] ?? 10, 
-      sortBy: params['sortBy'] ?? 'id',
-      direction: params['direction'] ?? 'asc',
-    );
-  },
-);
-
-// Provider para obtener una nota por ID
-final getNoteByIdProvider = FutureProvider.family<Note, int>(
-  (ref, id) async {
-    final noteService = ref.read(noteServiceProvider);
-    return noteService.getNoteById(id);
-  },
-);
-
 // Hook para obtener todas las notas
 class UseGetAllNotes {
   final WidgetRef ref;
+  final INoteService noteService;
+  final _allNotesProvider = queryProviderFamily<PaginatedResponse<Note>>();
 
-  UseGetAllNotes(this.ref);
+  UseGetAllNotes(this.ref)
+      : noteService = ref.read(noteServiceProvider);
 
-  Future<PaginatedResponse<Note>> getAllNotes({
+  String _getProviderKey(int page, int size, String sortBy, String direction) {
+    return 'all_notes_${page}_${size}_${sortBy}_$direction';
+  }
+
+  Future<void> fetch({
     int page = 0,
     int size = 10,
     String sortBy = 'id',
     String direction = 'asc',
   }) async {
-    try {
-      final params = {
-        'page': page,
-        'size': size,
-        'sortBy': sortBy,
-        'direction': direction,
-      };
-      
-      // Invalidamos el provider para forzar una recarga
-      ref.invalidate(getAllNotesProvider(params));
-      
-      // Esperamos el resultado
-      return await ref.read(getAllNotesProvider(params).future);
-    } catch (error) {
-      Fluttertoast.showToast(
-        msg: "Error al obtener notas: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
+    final key = _getProviderKey(page, size, sortBy, direction);
+    final notifier = ref.read(_allNotesProvider(key).notifier);
+    
+    await notifier.fetchData(() async {
+      return await noteService.getAllNotes(
+        page: page,
+        size: size, 
+        sortBy: sortBy,
+        direction: direction,
       );
-      rethrow;
-    }
+    });
+  }
+  
+  QueryState<PaginatedResponse<Note>> getState({
+    int page = 0,
+    int size = 10,
+    String sortBy = 'id',
+    String direction = 'asc',
+  }) {
+    final key = _getProviderKey(page, size, sortBy, direction);
+    return ref.watch(_allNotesProvider(key));
+  }
+  
+  void invalidate({
+    int page = 0,
+    int size = 10,
+    String sortBy = 'id',
+    String direction = 'asc',
+  }) {
+    final key = _getProviderKey(page, size, sortBy, direction);
+    ref.invalidate(_allNotesProvider(key));
   }
 }
 
@@ -74,35 +71,42 @@ class UseGetAllNotes {
 class UseCreateNote {
   final WidgetRef ref;
   final INoteService noteService;
+  final _createNoteProvider = queryProviderFamily<Note>();
 
   UseCreateNote(this.ref) 
       : noteService = ref.read(noteServiceProvider);
 
-  Future<Note> createNote(Note note) async {
-    try {
-      // Ejecutar la operación de crear nota
-      final createdNote = await noteService.createNote(note);
-      
+  Future<void> createNote(Note note) async {
+    final key = 'create_note_${DateTime.now().millisecondsSinceEpoch}';
+    final notifier = ref.read(_createNoteProvider(key).notifier);
+    
+    await notifier.fetchData(() async {
+      return await noteService.createNote(note);
+    });
+    
+    final state = ref.read(_createNoteProvider(key));
+    
+    if (state.error != null) {
+      Fluttertoast.showToast(
+        msg: "Error al crear nota: ${state.error}",
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+      );
+      throw Exception(state.error);
+    } else if (state.data != null) {
       // Invalidar consultas previas para forzar recarga de datos
-      ref.invalidate(getAllNotesProvider);
+      UseGetAllNotes(ref).invalidate();
       
-      // Mostrar mensaje de éxito
       Fluttertoast.showToast(
         msg: "Nota creada exitosamente",
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
       );
-      
-      return createdNote;
-    } catch (error) {
-      // Manejar errores y notificar
-      Fluttertoast.showToast(
-        msg: "Error al crear nota: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
-      rethrow;
     }
+  }
+  
+  QueryState<Note> getState(String key) {
+    return ref.watch(_createNoteProvider(key));
   }
 }
 
@@ -110,36 +114,45 @@ class UseCreateNote {
 class UseUpdateNote {
   final WidgetRef ref;
   final INoteService noteService;
+  final _updateNoteProvider = queryProviderFamily<Note>();
 
   UseUpdateNote(this.ref)
       : noteService = ref.read(noteServiceProvider);
 
-  Future<Note> updateNote(int id, Note note) async {
-    try {
-      // Ejecutar la operación de actualizar nota
-      final updatedNote = await noteService.updateNote(id, note);
+  String _getProviderKey(int id) => 'update_note_$id';
+
+  Future<void> updateNote(int id, Note note) async {
+    final key = _getProviderKey(id);
+    final notifier = ref.read(_updateNoteProvider(key).notifier);
+    
+    await notifier.fetchData(() async {
+      return await noteService.updateNote(id, note);
+    });
+    
+    final state = ref.read(_updateNoteProvider(key));
+    
+    if (state.error != null) {
+      Fluttertoast.showToast(
+        msg: "Error al actualizar nota: ${state.error}",
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+      );
+      throw Exception(state.error);
+    } else if (state.data != null) {
+      // Invalidar consultas previas
+      UseGetAllNotes(ref).invalidate();
+      UseGetNoteById(ref).invalidate(id);
       
-      // Invalidar consultas previas para forzar recarga de datos
-      ref.invalidate(getAllNotesProvider);
-      ref.invalidate(getNoteByIdProvider(id));
-      
-      // Mostrar mensaje de éxito
       Fluttertoast.showToast(
         msg: "Nota actualizada exitosamente",
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
       );
-      
-      return updatedNote;
-    } catch (error) {
-      // Manejar errores y notificar
-      Fluttertoast.showToast(
-        msg: "Error al actualizar nota: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
-      rethrow;
     }
+  }
+  
+  QueryState<Note> getState(int id) {
+    return ref.watch(_updateNoteProvider(_getProviderKey(id)));
   }
 }
 
@@ -147,59 +160,73 @@ class UseUpdateNote {
 class UseDeleteNote {
   final WidgetRef ref;
   final INoteService noteService;
+  final _deleteNoteProvider = queryProviderFamily<bool>();
 
   UseDeleteNote(this.ref)
       : noteService = ref.read(noteServiceProvider);
 
-  Future<bool> deleteNote(int id) async {
-    try {
-      // Ejecutar la operación de eliminar nota
-      final result = await noteService.deleteNote(id);
+  String _getProviderKey(int id) => 'delete_note_$id';
+
+  Future<void> deleteNote(int id) async {
+    final key = _getProviderKey(id);
+    final notifier = ref.read(_deleteNoteProvider(key).notifier);
+    
+    await notifier.fetchData(() async {
+      return await noteService.deleteNote(id);
+    });
+    
+    final state = ref.read(_deleteNoteProvider(key));
+    
+    if (state.error != null) {
+      Fluttertoast.showToast(
+        msg: "Error al eliminar nota: ${state.error}",
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+      );
+      throw Exception(state.error);
+    } else if (state.data != null && state.data!) {
+      // Invalidar consultas previas
+      UseGetAllNotes(ref).invalidate();
       
-      // Invalidar consultas previas para forzar recarga de datos
-      ref.invalidate(getAllNotesProvider);
-      
-      // Mostrar mensaje de éxito
       Fluttertoast.showToast(
         msg: "Nota eliminada exitosamente",
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
       );
-      
-      return result;
-    } catch (error) {
-      // Manejar errores y notificar
-      Fluttertoast.showToast(
-        msg: "Error al eliminar nota: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
-      rethrow;
     }
+  }
+  
+  QueryState<bool> getState(int id) {
+    return ref.watch(_deleteNoteProvider(_getProviderKey(id)));
   }
 }
 
 // Hook para obtener una nota por ID
 class UseGetNoteById {
   final WidgetRef ref;
+  final INoteService noteService;
+  final _noteByIdProvider = queryProviderFamily<Note>();
 
-  UseGetNoteById(this.ref);
+  UseGetNoteById(this.ref)
+      : noteService = ref.read(noteServiceProvider);
 
-  Future<Note> getNoteById(int id) async {
-    try {
-      // Invalidamos el provider para forzar una recarga
-      ref.invalidate(getNoteByIdProvider(id));
-      
-      // Esperamos el resultado
-      return await ref.read(getNoteByIdProvider(id).future);
-    } catch (error) {
-      Fluttertoast.showToast(
-        msg: "Error al obtener nota: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
-      rethrow;
-    }
+  String _getProviderKey(int id) => 'note_by_id_$id';
+
+  Future<void> fetch(int id) async {
+    final key = _getProviderKey(id);
+    final notifier = ref.read(_noteByIdProvider(key).notifier);
+    
+    await notifier.fetchData(() async {
+      return await noteService.getNoteById(id);
+    });
+  }
+  
+  QueryState<Note> getState(int id) {
+    return ref.watch(_noteByIdProvider(_getProviderKey(id)));
+  }
+  
+  void invalidate(int id) {
+    ref.invalidate(_noteByIdProvider(_getProviderKey(id)));
   }
 }
 
@@ -207,35 +234,45 @@ class UseGetNoteById {
 class UseAddNoteToStudent {
   final WidgetRef ref;
   final INoteService noteService;
+  final _addNoteToStudentProvider = queryProviderFamily<Note>();
 
   UseAddNoteToStudent(this.ref)
       : noteService = ref.read(noteServiceProvider);
 
-  Future<Note> addNoteToStudent(String studentUuid, Note note) async {
-    try {
-      // Ejecutar la operación de agregar nota a estudiante
-      final addedNote = await noteService.addNoteToStudent(studentUuid, note);
+  String _getProviderKey(String studentUuid, Note note) => 
+      'add_note_to_student_${studentUuid}_${note.toString()}';
+
+  Future<void> addNoteToStudent(String studentUuid, Note note) async {
+    final key = _getProviderKey(studentUuid, note);
+    final notifier = ref.read(_addNoteToStudentProvider(key).notifier);
+    
+    await notifier.fetchData(() async {
+      return await noteService.addNoteToStudent(studentUuid, note);
+    });
+    
+    final state = ref.read(_addNoteToStudentProvider(key));
+    
+    if (state.error != null) {
+      Fluttertoast.showToast(
+        msg: "Error al asignar nota al estudiante: ${state.error}",
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+      );
+      throw Exception(state.error);
+    } else if (state.data != null) {
+      // Invalidar consultas relacionadas
+      UseGetAllNotes(ref).invalidate();
       
-      // Invalidar consultas previas para forzar recarga de datos
-      ref.invalidate(getAllNotesProvider);
-      
-      // Mostrar mensaje de éxito
       Fluttertoast.showToast(
         msg: "Nota asignada exitosamente al estudiante",
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
       );
-      
-      return addedNote;
-    } catch (error) {
-      // Manejar errores y notificar
-      Fluttertoast.showToast(
-        msg: "Error al asignar nota al estudiante: ${error.toString()}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-      );
-      rethrow;
     }
+  }
+  
+  QueryState<Note> getState(String studentUuid, Note note) {
+    return ref.watch(_addNoteToStudentProvider(_getProviderKey(studentUuid, note)));
   }
 }
 

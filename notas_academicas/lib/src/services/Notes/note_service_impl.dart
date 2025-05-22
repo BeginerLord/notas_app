@@ -54,6 +54,17 @@ class NoteServiceImpl implements INoteService {
   }
 
   @override
+  Future<Note> getNoteById(int id) async {
+    await initializeApi();
+
+    // Realiza la solicitud GET para obtener una nota por su ID
+    final response = await api.get('/note/$id');
+
+    // Crea un objeto Note a partir de la respuesta
+    return Note.fromGetResponse(response.data);
+  }
+
+  @override
   Future<Note> updateNote(int id, Note note) async {
     await initializeApi();
 
@@ -87,17 +98,6 @@ class NoteServiceImpl implements INoteService {
 
     // Realiza la solicitud PUT para agregar una nota a un estudiante
     final response = await api.put('/note/add/$studentUuid', data: requestData);
-
-    // Crea un objeto Note a partir de la respuesta
-    return Note.fromGetResponse(response.data);
-  }
-
-  @override
-  Future<Note> getNoteById(int id) async {
-    await initializeApi();
-
-    // Realiza la solicitud GET para obtener una nota por su ID
-    final response = await api.get('/note/$id');
 
     // Crea un objeto Note a partir de la respuesta
     return Note.fromGetResponse(response.data);
